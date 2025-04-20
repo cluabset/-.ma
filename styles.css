@@ -32,29 +32,71 @@ body {
     transition: var(--transition);
     line-height: 1.6;
 }
-/* الحالة العادية */
-#answer-input {
+
+/* أنماط حقل إدخال الإجابة */
+.answer-input {
     width: 100%;
-    padding: 12px 15px;
+    padding: 14px 18px;
     font-size: 16px;
     font-family: 'Tajawal', sans-serif;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    background-color: #f9f9f9;
-    color: #333;
-    transition: all 0.3s ease;
+    border: 2px solid var(--light-color);
+    border-radius: 10px;
+    background-color: var(--white);
+    color: var(--dark-color);
+    transition: var(--transition);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     outline: none;
     text-align: right;
     direction: rtl;
+    margin: 10px 0;
 }
 
-/* تأثير Hover */
-#answer-input:hover {
-    border-color: #3498db;
-    background-color: #fff;
-    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
-    transform: translateY(-1px);
+/* تأثيرات Hover */
+.answer-input:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
+    transform: translateY(-2px);
 }
+
+/* تأثيرات Focus */
+.answer-input:focus {
+    border-color: var(--primary-dark);
+    box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.2);
+    background-color: var(--white);
+}
+
+/* Placeholder مخصص */
+.answer-input::placeholder {
+    color: var(--gray-color);
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.answer-input:focus::placeholder {
+    opacity: 0.4;
+}
+
+/* حالة الإجابة الصحيحة */
+.answer-input.correct-answer {
+    border-color: var(--secondary-color);
+    background-color: rgba(46, 204, 113, 0.05);
+    animation: pulseCorrect 0.5s;
+}
+
+/* حالة الإجابة الخاطئة */
+.answer-input.wrong-answer {
+    border-color: var(--danger-color);
+    background-color: rgba(231, 76, 60, 0.05);
+    animation: shake 0.5s;
+}
+
+/* تصميم للوضع المعطل */
+.answer-input:disabled {
+    background-color: var(--light-color);
+    color: var(--gray-color);
+    cursor: not-allowed;
+    }
+
 .header {
     text-align: center;
     margin-bottom: 2rem;
