@@ -483,6 +483,38 @@
             font-size: 16px;
         }
         
+        /* أنماط الذكاء الاصطناعي المضافة */
+        .ai-feedback {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+            text-align: right;
+            padding: 5px 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-right: 3px solid var(--primary-color);
+        }
+        
+        .ai-processing {
+            display: inline-block;
+            margin-right: 10px;
+            color: var(--primary-color);
+            font-weight: 600;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .input-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 24px;
@@ -873,24 +905,154 @@
                 }
             }
             
+            // ==============================================
+            // دوال الذكاء الاصطناعي المضافة
+            // ==============================================
+            
+            /**
+             * تطبيع النص العربي لمقارنة أكثر دقة
+             * @param {string} text - النص المدخل
+             * @returns {string} النص المطبيع
+             */
+            function normalizeForAI(text) {
+                return text
+                    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '') // إزالة علامات الترقيم
+                    .replace(/\s{2,}/g, ' ') // تحويل المسافات المتعددة إلى مسافة واحدة
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[أآإ]/g, 'ا') // توحيد أشكال الألف
+                    .replace(/[ة]/g, 'ه') // تحويل التاء المربوطة إلى هاء
+                    .replace(/[ى]/g, 'ي') // تحويل الألف المقصورة إلى ياء
+                    .replace(/[ؤ]/g, 'ء') // توحيد الهمزات
+                    .replace(/[ئ]/g, 'ء'); // توحيد الهمزات
+            }
+            
+            /**
+             * حساب درجة التشابه بين نصين (0 إلى 1)
+             * @param {string} str1 - النص الأول
+             * @param {string} str2 - النص الثاني
+             * @returns {number} درجة التشابه بين 0 و 1
+             */
+            function calculateSimilarity(str1, str2) {
+                const len = Math.max(str1.length, str2.length);
+                if (len === 0) return 1.0;
+                
+                const distance = levenshteinDistance(str1, str2);
+                return (len - distance) / len;
+            }
+            
+            /**
+             * حساب مسافة ليفنشتاين بين نصين (عدد التعديلات المطلوبة)
+             * @param {string} a - النص الأول
+             * @param {string} b - النص الثاني
+             * @returns {number} مسافة ليفنشتاين
+             */
+            function levenshteinDistance(a, b) {
+                if (a.length === 0) return b.length;
+                if (b.length === 0) return a.length;
+                
+                const matrix = [];
+                for (let i = 0; i <= b.length; i++) {
+                    matrix[i] = [i];
+                }
+                
+                for (let j = 0; j <= a.length; j++) {
+                    matrix[0][j] = j;
+                }
+                
+                for (let i = 1; i <= b.length; i++) {
+                    for (let j = 1; j <= a.length; j++) {
+                        const cost = a[j - 1] === b[i - 1] ? 0 : 1;
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j - 1] + cost
+                        );
+                    }
+                }
+                
+                return matrix[b.length][a.length];
+            }
+            
+            /**
+             * فهم الإجابة المدخلة ومقارنتها بالإجابات الصحيحة
+             * @param {string} userAnswer - إجابة المستخدم
+             * @param {Array} correctAnswers - قائمة الإجابات الصحيحة
+             * @returns {Object} نتيجة التحليل
+             */
+            function understandAnswer(userAnswer, correctAnswers) {
+                // معالجة الإجابة لزيادة فرص المطابقة
+                const processedUser = normalizeForAI(userAnswer);
+                let bestMatch = '';
+                let bestScore = 0;
+                
+                correctAnswers.forEach(correct => {
+                    const processedCorrect = normalizeForAI(correct);
+                    const similarity = calculateSimilarity(processedUser, processedCorrect);
+                    
+                    if (similarity > bestScore) {
+                        bestScore = similarity;
+                        bestMatch = correct;
+                    }
+                });
+                
+                return {
+                    match: bestMatch,
+                    score: bestScore,
+                    isCorrect: bestScore > 0.7 // يمكن تعديل هذا الحد حسب الحاجة
+                };
+            }
+            
+            // ==============================================
+            // نهاية دوال الذكاء الاصطناعي
+            // ==============================================
+            
             // التحقق من الإجابة
             function checkAnswer() {
                 const question = quizData[currentQuestionIndex];
                 let isCorrect = false;
+                let aiFeedback = '';
                 
-                // نظام الأسئلة النصية
+                // نظام الأسئلة النصية مع الذكاء الاصطناعي
                 if (question.type === 'text') {
                     const input = document.getElementById('answer-input');
-                    const userAnswer = normalizeAnswer(input.value.trim());
+                    const userAnswer = input.value.trim();
                     
-                    let correctAnswers = [normalizeAnswer(question.answer)];
+                    let correctAnswers = [question.answer];
                     if (question.alternativeAnswers) {
-                        correctAnswers = correctAnswers.concat(
-                            question.alternativeAnswers.map(a => normalizeAnswer(a))
-                        );
+                        correctAnswers = correctAnswers.concat(question.alternativeAnswers);
                     }
                     
-                    isCorrect = correctAnswers.includes(userAnswer);
+                    // عرض رسالة معالجة الذكاء الاصطناعي
+                    const feedbackElement = document.createElement('div');
+                    feedbackElement.className = 'ai-processing';
+                    feedbackElement.textContent = 'جاري تحليل الإجابة...';
+                    input.parentNode.insertBefore(feedbackElement, input.nextSibling);
+                    
+                    // محاكاة معالجة الذكاء الاصطناعي (في تطبيق حقيقي يمكنك استخدام API)
+                    setTimeout(() => {
+                        feedbackElement.remove();
+                        
+                        const aiResult = understandAnswer(userAnswer, correctAnswers);
+                        
+                        if (aiResult.isCorrect) {
+                            isCorrect = true;
+                            aiFeedback = `تم فهم إجابتك كـ "${aiResult.match}"`;
+                        } else {
+                            aiFeedback = `إجابتك تشبه "${aiResult.match}" ولكنها غير صحيحة`;
+                        }
+                        
+                        // عرض ملاحظات الذكاء الاصطناعي
+                        const aiFeedbackElement = document.createElement('div');
+                        aiFeedbackElement.className = 'ai-feedback';
+                        aiFeedbackElement.textContent = aiFeedback;
+                        input.parentNode.insertBefore(aiFeedbackElement, input.nextSibling);
+                        
+                        // متابعة عملية التصحيح
+                        completeChecking(isCorrect, question);
+                    }, 1500);
+                    
+                    return;
                 } 
                 // نظام الأسئلة الاختيارية
                 else if (question.type === 'choices') {
@@ -980,6 +1142,10 @@
                 const hintBtn = document.getElementById('hint-btn');
                 if (hintBtn) hintBtn.style.display = 'none';
                 
+                completeChecking(isCorrect, question);
+            }
+            
+            function completeChecking(isCorrect, question) {
                 if (isCorrect) {
                     correctSound.play();
                     score++;
