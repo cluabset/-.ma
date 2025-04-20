@@ -32,7 +32,29 @@ body {
     transition: var(--transition);
     line-height: 1.6;
 }
+/* الحالة العادية */
+.answer-input {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 16px;
+    font-family: 'Tajawal', sans-serif;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    color: #333;
+    transition: all 0.3s ease;
+    outline: none;
+    text-align: right;
+    direction: rtl;
+}
 
+/* تأثير Hover */
+.answer-input:hover {
+    border-color: #3498db;
+    background-color: #fff;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
+    transform: translateY(-1px);
+}
 .header {
     text-align: center;
     margin-bottom: 2rem;
