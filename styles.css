@@ -284,13 +284,15 @@ body {
     flex-direction: column;
     gap: 1.25rem;
     margin-bottom: 2rem;
+    width: 100%;
 }
 
 .matching-pairs {
     display: flex;
     justify-content: space-between;
-    gap: 2.5rem; /* زيادة المسافة بين العمودين */
+    gap: 1.5rem;
     position: relative;
+    width: 100%;
 }
 
 /* إضافة خط متقطع للفصل بين العمودين */
@@ -312,6 +314,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    width: 50%;
 }
 
 .matching-column.left-column {
@@ -338,6 +341,7 @@ body {
     background-color: var(--white);
     box-shadow: var(--shadow);
     font-weight: 600;
+    max-width: 90%;
 }
 
 .matching-column.left-column .matching-item {
@@ -785,87 +789,4 @@ body {
         opacity: 0;
     }
     to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-@keyframes pulse {
-    0% { opacity: 0.6; }
-    50% { opacity: 1; }
-    100% { opacity: 0.6; }
-}
-
-@keyframes pulseCorrect {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-    20%, 40%, 60%, 80% { transform: translateX(5px); }
-}
-
-@keyframes bounce {
-    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-20px); }
-    60% { transform: translateY(-10px); }
-}
-
-@media (max-width: 768px) {
-    body {
-        padding: 1rem;
-    }
-    
-    .header h1 {
-        font-size: 1.5rem;
-    }
-    
-    #lesson-selector, #quiz-container {
-        padding: 1.5rem;
-    }
-    
-    .question {
-        font-size: 1.125rem;
-    }
-    
-    .matching-pairs {
-        flex-direction: column;
-        gap: 1.5rem;
-    }
-    
-    .matching-pairs::after {
-        display: none;
-    }
-    
-    .matching-item {
-        width: 100%;
-        max-width: 100%;
-    }
-    
-    .matching-column.left-column, 
-    .matching-column.right-column {
-        align-items: center;
-    }
-    
-    .matching-column.left-column .matching-item,
-    .matching-column.right-column .matching-item {
-        text-align: center;
-        justify-content: center;
-        padding: 1rem;
-    }
-    
-    .matching-column.left-column .matching-item {
-        border-right-width: 2px;
-    }
-    
-    .matching-column.right-column .matching-item {
-        border-left-width: 2px;
-    }
-    
-    .btn-next, .btn-restart {
-        padding: 0.875rem 1.5rem;
-    }
-}
+        transform:
