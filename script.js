@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const quizContainer = document.getElementById('quiz-container');
     const quizTitle = document.getElementById('quiz-title');
     const lessonSelector = document.getElementById('lesson-selector');
+    const hintContainer = document.getElementById('hint-container');
+    const hintContent = document.getElementById('hint-content');
+    const closeHintBtn = document.getElementById('close-hint-btn');
     
     // بيانات الاختبار
     let currentSubject = 'history';
@@ -17,23 +20,33 @@ document.addEventListener('DOMContentLoaded', function() {
     let quizData = [];
     let currentQuestionIndex = 0;
     let score = 0;
+    let subjects = {}; // سيتم تحميلها من ملف JSON
     
-    // تعريف دروس كل مادة
-    const subjects = {
-        history: {
-            name: 'التاريخ',
-            lessons: {
-                'الحرب_العالمية_الثانية': 'الحرب العالمية الثانية',
-                'التحولات_الاقتصادية': 'التحولات الاقتصادية'
-            }
-        },
-        geography: {
-            name: 'الجغرافيا',
-            lessons: {
-                'التنمية': 'مفهوم التنمية'
-            }
-        }
-    };
+    // تحميل المواد والدروس من ملف JSON
+    function loadSubjects() {
+        fetch('subjects.json')
+            .then(response => {
+                if (!response.ok) throw new Error('لم يتم العثور على ملف المواد');
+                return response.json();
+            })
+            .then(data => {
+                subjects = data;
+                updateLessonDropdown();
+            })
+            .catch(error => {
+                console.error('حدث خطأ في تحميل المواد:', error);
+                // بيانات افتراضية في حالة الخطأ
+                subjects = {
+                    history: {
+                        name: 'التاريخ',
+                        lessons: {
+                            'الحرب_العالمية_الثانية': 'الحرب العالمية الثانية'
+                        }
+                    }
+                };
+                updateLessonDropdown();
+            });
+    }
     
     // تغيير المادة عند النقر على التبويب
     document.querySelectorAll('.subject-tab').forEach(tab => {
@@ -50,6 +63,8 @@ document.addEventListener('DOMContentLoaded', function() {
         lessonDropdown.innerHTML = '<option value="">-- اختر الدرس --</option>';
         
         const subject = subjects[currentSubject];
+        if (!subject) return;
+        
         quizTitle.textContent = `اختبار ${subject.name}`;
         
         for (const [value, text] of Object.entries(subject.lessons)) {
@@ -74,16 +89,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // تحميل الأسئلة من ملف JSON
     function loadQuestions(lesson) {
-        fetch(`${lesson}.json`)
+        fetch(`questions/${currentSubject}/${lesson}.json`)
             .then(response => {
-                if (!response.ok) {
-                    throw new Error('لم يتم العثور على ملف الأسئلة');
-                }
+                if (!response.ok) throw new Error('لم يتم العثور على ملف الأسئلة');
                 return response.json();
             })
             .then(data => {
                 quizData = data;
-                // إخفاء عناصر اختيار المادة والدرس
                 subjectTabs.style.display = 'none';
                 lessonSelector.style.display = 'none';
                 quizContainer.style.display = 'block';
@@ -131,8 +143,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // نظام الأسئلة الاختيارية
         else if (question.type === 'choices') {
             questionHTML += '<div class="choices">';
-            
-            // خلط الخيارات عشوائياً
             const shuffledOptions = [...question.choices].sort(() => Math.random() - 0.5);
             
             shuffledOptions.forEach((choice, index) => {
@@ -143,20 +153,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             });
             
-            questionHTML += '</div>';
-            questionHTML += `<button class="btn-next" id="check-answer" disabled>تحقق</button>`;
+            questionHTML += '</div><button class="btn-next" id="check-answer" disabled>تحقق</button>';
         } 
-        // نظام الربط بين العناصر (المعدل)
-        else if (question.type === 'matching') {
-            questionHTML += '<div class="matching-container">';
-            questionHTML += '<div class="matching-pairs">';
+        // نظام ملء الفراغات
+        else if (question.type === 'fill') {
+            const questionWithBlanks = question.question.replace(/\_\_+/g, 
+                '<input type="text" class="blank-input" placeholder="______">');
             
-            // إنشاء عمودين منفصلين
-            questionHTML += '<div class="matching-row">';
+            questionHTML = `
+                <div class="question">${questionWithBlanks}</div>
+                <button class="btn-next" id="check-answer">تحقق</button>
+            `;
+        }
+        // نظام الربط بين العناصر
+        else if (question.type === 'matching') {
+            questionHTML += '<div class="matching-container"><div class="matching-pairs"><div class="matching-row">';
             
             // العمود الأيمن
             questionHTML += '<div class="matching-column right-column">';
-            // خلط العناصر اليمنى عشوائياً
             const shuffledRightItems = [...question.rightItems].sort(() => Math.random() - 0.5);
             shuffledRightItems.forEach(item => {
                 questionHTML += `
@@ -169,7 +183,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // العمود الأيسر
             questionHTML += '<div class="matching-column left-column">';
-            // خلط العناصر اليسرى عشوائياً
             const shuffledLeftItems = [...question.leftItems].sort(() => Math.random() - 0.5);
             shuffledLeftItems.forEach(item => {
                 questionHTML += `
@@ -178,20 +191,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             });
-            questionHTML += '</div>';
+            questionHTML += '</div></div></div>';
             
-            questionHTML += '</div>'; // نهاية matching-row
-            questionHTML += '</div>'; // نهاية matching-pairs
-            
-            // أزرار التحكم
             questionHTML += `
                 <div class="matching-controls">
                     <button class="matching-btn" id="clear-matching">مسح التحديد</button>
                 </div>
+                <button class="btn-next" id="check-answer">تحقق</button>
             `;
-            
-            questionHTML += `<button class="btn-next" id="check-answer">تحقق</button>`;
-            questionHTML += '</div>'; // نهاية matching-container
         }
         
         // إضافة زر التلميح إذا كان موجوداً
@@ -224,55 +231,36 @@ document.addEventListener('DOMContentLoaded', function() {
         else if (question.type === 'choices') {
             document.querySelectorAll('.choice-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    // إزالة التحديد من الزر المحدد مسبقاً إن وجد
-                    const previouslySelected = document.querySelector('.choice-btn.selected');
-                    if (previouslySelected && previouslySelected !== this) {
-                        previouslySelected.classList.remove('selected');
-                    }
-                    
-                    // تبديل حالة التحديد للزر الحالي
-                    this.classList.toggle('selected');
-                    
-                    // تمكين/تعطيل زر التحقق بناءً على وجود اختيار
-                    document.getElementById('check-answer').disabled = 
-                        !document.querySelector('.choice-btn.selected');
+                    document.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    document.getElementById('check-answer').disabled = false;
                 });
             });
             
             document.getElementById('check-answer').addEventListener('click', checkAnswer);
-        } 
+        }
+        else if (question.type === 'fill') {
+            document.getElementById('check-answer').addEventListener('click', checkAnswer);
+        }
         else if (question.type === 'matching') {
             let selectedItem = null;
             
             document.querySelectorAll('.matching-item').forEach(item => {
                 item.addEventListener('click', function() {
-                    // إذا لم يكن هناك عنصر محدد، نحدد العنصر الحالي
                     if (!selectedItem) {
                         selectedItem = this;
                         this.classList.add('selected');
                         return;
                     }
                     
-                    // إذا كان العنصر المحدد من نفس النوع (يمين/يسار)، نغير التحديد
-                    if (selectedItem.classList.contains('right-item') && this.classList.contains('right-item') ||
-                        selectedItem.classList.contains('left-item') && this.classList.contains('left-item')) {
+                    if ((selectedItem.classList.contains('right-item') && this.classList.contains('right-item')) {
                         selectedItem.classList.remove('selected');
                         selectedItem = this;
                         this.classList.add('selected');
                         return;
                     }
                     
-                    // إذا كان العنصر المحدد من النوع الآخر، نربط بينهما
-                    // إزالة أي اتصالات سابقة لهذين العنصرين
-                    document.querySelectorAll('.matching-item').forEach(i => {
-                        if (i.dataset.pairedWith === selectedItem.dataset.id || 
-                            i.dataset.pairedWith === this.dataset.id) {
-                            delete i.dataset.pairedWith;
-                            i.classList.remove('connected');
-                        }
-                    });
-                    
-                    // إنشاء الاتصال الجديد
+                    // إنشاء الاتصال
                     selectedItem.dataset.pairedWith = this.dataset.id;
                     this.dataset.pairedWith = selectedItem.dataset.id;
                     
@@ -283,7 +271,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
             
-            // زر مسح التحديد
             document.getElementById('clear-matching').addEventListener('click', function() {
                 document.querySelectorAll('.matching-item').forEach(item => {
                     item.classList.remove('selected', 'connected');
@@ -295,66 +282,180 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('check-answer').addEventListener('click', checkAnswer);
         }
         
-        // إضافة زر التلميح إذا كان موجوداً
+        // إضافة مستمع حدث زر التلميح
         if (question.hint) {
-            const hintBtn = document.getElementById('hint-btn');
-            const hintContainer = document.getElementById('hint-container');
-            const hintContent = document.getElementById('hint-content');
-            const closeHintBtn = document.getElementById('close-hint-btn');
-            
-            hintBtn.addEventListener('click', () => {
+            document.getElementById('hint-btn').addEventListener('click', () => {
                 hintContent.innerHTML = question.hint;
                 hintContainer.classList.add('show');
-            });
-            
-            closeHintBtn.addEventListener('click', () => {
-                hintContainer.classList.remove('show');
             });
         }
     }
     
-    // ==============================================
-    // دوال الذكاء الاصطناعي المضافة
-    // ==============================================
-    
-    /**
-     * تطبيع النص العربي لمقارنة أكثر دقة
-     * @param {string} text - النص المدخل
-     * @returns {string} النص المطبيع
-     */
-    function normalizeForAI(text) {
-        return text
-            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '') // إزالة علامات الترقيم
-            .replace(/\s{2,}/g, ' ') // تحويل المسافات المتعددة إلى مسافة واحدة
-            .trim()
-            .toLowerCase()
-            .replace(/[أآإ]/g, 'ا') // توحيد أشكال الألف
-            .replace(/[ة]/g, 'ه') // تحويل التاء المربوطة إلى هاء
-            .replace(/[ى]/g, 'ي') // تحويل الألف المقصورة إلى ياء
-            .replace(/[ؤ]/g, 'ء') // توحيد الهمزات
-            .replace(/[ئ]/g, 'ء'); // توحيد الهمزات
+    // التحقق من الإجابة
+    function checkAnswer() {
+        const question = quizData[currentQuestionIndex];
+        let isCorrect = false;
+        
+        if (question.type === 'text') {
+            const input = document.getElementById('answer-input');
+            const userAnswer = input.value.trim();
+            
+            let correctAnswers = [question.answer];
+            if (question.alternativeAnswers) {
+                correctAnswers = correctAnswers.concat(question.alternativeAnswers);
+            }
+            
+            const aiResult = understandAnswer(userAnswer, correctAnswers);
+            isCorrect = aiResult.isCorrect;
+            
+            // عرض ملاحظات الذكاء الاصطناعي
+            const aiFeedback = document.createElement('div');
+            aiFeedback.className = 'ai-feedback';
+            aiFeedback.textContent = aiResult.match ? `تم فهم إجابتك كـ "${aiResult.match}"` : '';
+            input.parentNode.insertBefore(aiFeedback, input.nextSibling);
+        } 
+        else if (question.type === 'choices') {
+            const selectedBtn = document.querySelector('.choice-btn.selected');
+            if (!selectedBtn) return;
+            
+            const selectedIndex = parseInt(selectedBtn.getAttribute('data-choice'));
+            
+            if (Array.isArray(question.correctIndex)) {
+                isCorrect = question.correctIndex.includes(selectedIndex);
+                question.correctIndex.forEach(idx => {
+                    document.querySelector(`.choice-btn[data-choice="${idx}"]`).classList.add('correct');
+                });
+            } else {
+                isCorrect = selectedIndex === question.correctIndex;
+                document.querySelector(`.choice-btn[data-choice="${question.correctIndex}"]`).classList.add('correct');
+            }
+            
+            if (!isCorrect) {
+                selectedBtn.classList.add('incorrect');
+            }
+        }
+        else if (question.type === 'fill') {
+            const blankInputs = document.querySelectorAll('.blank-input');
+            let allCorrect = true;
+            
+            blankInputs.forEach((input, index) => {
+                const userAnswer = normalizeAnswer(input.value);
+                const correctAnswer = normalizeAnswer(question.answers[index]);
+                const similarity = calculateSimilarity(userAnswer, correctAnswer);
+                
+                if (similarity >= 0.7) {
+                    input.classList.add('correct');
+                } else {
+                    input.classList.add('incorrect');
+                    allCorrect = false;
+                    
+                    const correctSpan = document.createElement('span');
+                    correctSpan.className = 'correct-answer';
+                    correctSpan.textContent = ` (${question.answers[index]})`;
+                    input.parentNode.insertBefore(correctSpan, input.nextSibling);
+                }
+            });
+            
+            isCorrect = allCorrect;
+        }
+        else if (question.type === 'matching') {
+            const connectedPairs = {};
+            let correctPairs = 0;
+            
+            document.querySelectorAll('.matching-item.connected.right-item').forEach(item => {
+                connectedPairs[item.dataset.id] = item.dataset.pairedWith;
+            });
+            
+            Object.keys(question.correctPairs).forEach(rightId => {
+                if (connectedPairs[rightId] === question.correctPairs[rightId]) {
+                    correctPairs++;
+                }
+            });
+            
+            isCorrect = correctPairs === Object.keys(question.correctPairs).length;
+            
+            // تلوين الأزواج
+            document.querySelectorAll('.matching-item.connected').forEach(item => {
+                if (item.classList.contains('right-item')) {
+                    const leftId = item.dataset.pairedWith;
+                    const leftItem = document.querySelector(`.left-item[data-id="${leftId}"]`);
+                    
+                    if (question.correctPairs[item.dataset.id] === leftId) {
+                        item.classList.add('correct');
+                        leftItem.classList.add('correct');
+                    } else {
+                        item.classList.add('incorrect');
+                        leftItem.classList.add('incorrect');
+                    }
+                }
+            });
+        }
+        
+        // تعطيل العناصر بعد الإجابة
+        disableQuestionElements(question.type);
+        
+        completeChecking(isCorrect, question);
     }
     
-    /**
-     * حساب درجة التشابه بين نصين (0 إلى 1)
-     * @param {string} str1 - النص الأول
-     * @param {string} str2 - النص الثاني
-     * @returns {number} درجة التشابه بين 0 و 1
-     */
+    function disableQuestionElements(questionType) {
+        if (questionType === 'choices') {
+            document.querySelectorAll('.choice-btn').forEach(btn => {
+                btn.style.pointerEvents = 'none';
+            });
+        } 
+        else if (questionType === 'matching') {
+            document.querySelectorAll('.matching-item').forEach(item => {
+                item.style.pointerEvents = 'none';
+            });
+            document.getElementById('clear-matching').disabled = true;
+        }
+        else if (questionType === 'fill') {
+            document.querySelectorAll('.blank-input').forEach(input => {
+                input.readOnly = true;
+            });
+        }
+        
+        const checkBtn = document.getElementById('check-answer');
+        if (checkBtn) checkBtn.disabled = true;
+        
+        const hintBtn = document.getElementById('hint-btn');
+        if (hintBtn) hintBtn.style.display = 'none';
+    }
+    
+    function completeChecking(isCorrect, question) {
+        if (isCorrect) {
+            correctSound.play();
+            score++;
+            updateScoreDisplay();
+        } else {
+            wrongSound.play();
+        }
+        
+        setTimeout(() => {
+            showFeedback(isCorrect, getCorrectAnswerText(question));
+        }, 800);
+    }
+    
+    // دوال الذكاء الاصطناعي
+    function normalizeForAI(text) {
+        return text
+            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
+            .replace(/\s{2,}/g, ' ')
+            .trim()
+            .toLowerCase()
+            .replace(/[أآإ]/g, 'ا')
+            .replace(/[ة]/g, 'ه')
+            .replace(/[ى]/g, 'ي')
+            .replace(/[ؤئ]/g, 'ء');
+    }
+    
     function calculateSimilarity(str1, str2) {
         const len = Math.max(str1.length, str2.length);
         if (len === 0) return 1.0;
-        
         const distance = levenshteinDistance(str1, str2);
         return (len - distance) / len;
     }
     
-    /**
-     * حساب مسافة ليفنشتاين بين نصين (عدد التعديلات المطلوبة)
-     * @param {string} a - النص الأول
-     * @param {string} b - النص الثاني
-     * @returns {number} مسافة ليفنشتاين
-     */
     function levenshteinDistance(a, b) {
         if (a.length === 0) return b.length;
         if (b.length === 0) return a.length;
@@ -382,14 +483,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return matrix[b.length][a.length];
     }
     
-    /**
-     * فهم الإجابة المدخلة ومقارنتها بالإجابات الصحيحة
-     * @param {string} userAnswer - إجابة المستخدم
-     * @param {Array} correctAnswers - قائمة الإجابات الصحيحة
-     * @returns {Object} نتيجة التحليل
-     */
     function understandAnswer(userAnswer, correctAnswers) {
-        // معالجة الإجابة لزيادة فرص المطابقة
         const processedUser = normalizeForAI(userAnswer);
         let bestMatch = '';
         let bestScore = 0;
@@ -407,171 +501,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return {
             match: bestMatch,
             score: bestScore,
-            isCorrect: bestScore > 0.7 // يمكن تعديل هذا الحد حسب الحاجة
+            isCorrect: bestScore > 0.7
         };
     }
     
-    // ==============================================
-    // نهاية دوال الذكاء الاصطناعي
-    // ==============================================
-    
-    // التحقق من الإجابة
-    function checkAnswer() {
-        const question = quizData[currentQuestionIndex];
-        let isCorrect = false;
-        let aiFeedback = '';
-        
-        // نظام الأسئلة النصية مع الذكاء الاصطناعي
-        if (question.type === 'text') {
-            const input = document.getElementById('answer-input');
-            const userAnswer = input.value.trim();
-            
-            let correctAnswers = [question.answer];
-            if (question.alternativeAnswers) {
-                correctAnswers = correctAnswers.concat(question.alternativeAnswers);
-            }
-            
-            // عرض رسالة معالجة الذكاء الاصطناعي
-            const feedbackElement = document.createElement('div');
-            feedbackElement.className = 'ai-processing';
-            feedbackElement.textContent = 'جاري تحليل الإجابة...';
-            input.parentNode.insertBefore(feedbackElement, input.nextSibling);
-            
-            // محاكاة معالجة الذكاء الاصطناعي (في تطبيق حقيقي يمكنك استخدام API)
-            setTimeout(() => {
-                feedbackElement.remove();
-                
-                const aiResult = understandAnswer(userAnswer, correctAnswers);
-                
-                if (aiResult.isCorrect) {
-                    isCorrect = true;
-                    aiFeedback = `تم فهم إجابتك كـ "${aiResult.match}"`;
-                } else {
-                    aiFeedback = `إجابتك تشبه "${aiResult.match}" ولكنها غير صحيحة`;
-                }
-                
-                // عرض ملاحظات الذكاء الاصطناعي
-                const aiFeedbackElement = document.createElement('div');
-                aiFeedbackElement.className = 'ai-feedback';
-                aiFeedbackElement.textContent = aiFeedback;
-                input.parentNode.insertBefore(aiFeedbackElement, input.nextSibling);
-                
-                // متابعة عملية التصحيح
-                completeChecking(isCorrect, question);
-            }, 1500);
-            
-            return;
-        } 
-        // نظام الأسئلة الاختيارية
-        else if (question.type === 'choices') {
-            const selectedBtn = document.querySelector('.choice-btn.selected');
-            if (!selectedBtn) return;
-            
-            const selectedIndex = parseInt(selectedBtn.getAttribute('data-choice'));
-            
-            // دعم عدة إجابات صحيحة
-            if (Array.isArray(question.correctIndex)) {
-                isCorrect = question.correctIndex.includes(selectedIndex);
-                
-                // تلوين الإجابات الصحيحة
-                question.correctIndex.forEach(idx => {
-                    document.querySelectorAll('.choice-btn').forEach(btn => {
-                        if (parseInt(btn.getAttribute('data-choice')) === idx) {
-                            btn.classList.add('correct');
-                        }
-                    });
-                });
-            } 
-            // دعم إجابة صحيحة واحدة
-            else if (question.correctIndex !== undefined) {
-                isCorrect = selectedIndex === question.correctIndex;
-                document.querySelector(`.choice-btn[data-choice="${question.correctIndex}"]`).classList.add('correct');
-            }
-            
-            // تلوين الإجابة الخاطئة إذا كانت خاطئة
-            if (!isCorrect) {
-                selectedBtn.classList.add('incorrect');
-            }
-        } 
-        // نظام الربط بين العناصر
-        else if (question.type === 'matching') {
-            const connectedPairs = {};
-            let correctPairs = 0;
-            
-            // جمع الأزواج المتصلة
-            document.querySelectorAll('.matching-item.connected').forEach(item => {
-                if (item.classList.contains('right-item')) {
-                    connectedPairs[item.dataset.id] = item.dataset.pairedWith;
-                }
-            });
-            
-            // التحقق من الأزواج الصحيحة
-            Object.keys(question.correctPairs).forEach(rightId => {
-                if (connectedPairs[rightId] === question.correctPairs[rightId]) {
-                    correctPairs++;
-                }
-            });
-            
-            // إذا كانت جميع الأزواج صحيحة
-            isCorrect = correctPairs === Object.keys(question.correctPairs).length;
-            
-            // تلوين الأزواج الصحيحة والخاطئة
-            document.querySelectorAll('.matching-item.connected').forEach(item => {
-                if (item.classList.contains('right-item')) {
-                    const leftId = item.dataset.pairedWith;
-                    const leftItem = document.querySelector(`.left-item[data-id="${leftId}"]`);
-                    
-                    if (question.correctPairs[item.dataset.id] === leftId) {
-                        item.classList.add('correct');
-                        leftItem.classList.add('correct');
-                    } else {
-                        item.classList.add('incorrect');
-                        leftItem.classList.add('incorrect');
-                    }
-                }
-            });
-        }
-        
-        // تعطيل جميع العناصر بعد الإجابة
-        if (question.type === 'choices') {
-            document.querySelectorAll('.choice-btn').forEach(btn => {
-                btn.style.pointerEvents = 'none';
-            });
-        } else if (question.type === 'matching') {
-            document.querySelectorAll('.matching-item').forEach(item => {
-                item.style.pointerEvents = 'none';
-            });
-            document.getElementById('clear-matching').disabled = true;
-        }
-        
-        const checkBtn = document.getElementById('check-answer');
-        if (checkBtn) checkBtn.disabled = true;
-        
-        const hintBtn = document.getElementById('hint-btn');
-        if (hintBtn) hintBtn.style.display = 'none';
-        
-        completeChecking(isCorrect, question);
-    }
-    
-    function completeChecking(isCorrect, question) {
-        if (isCorrect) {
-            correctSound.play();
-            score++;
-            updateScoreDisplay();
-        } else {
-            wrongSound.play();
-        }
-        
-        // عرض التغذية الراجعة
-        setTimeout(() => {
-            showFeedback(
-                isCorrect, 
-                getCorrectAnswerText(question)
-            );
-        }, 800);
-    }
-    
-    // الحصول على نص الإجابة الصحيحة
     function getCorrectAnswerText(question) {
         if (question.type === 'text') {
             return question.answer;
@@ -581,6 +514,8 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 return question.choices[question.correctIndex];
             }
+        } else if (question.type === 'fill') {
+            return question.answers.join(' ، ');
         } else if (question.type === 'matching') {
             let correctMatches = [];
             Object.keys(question.correctPairs).forEach(rightId => {
@@ -593,7 +528,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return '';
     }
     
-    // تطبيع الإجابة النصية
     function normalizeAnswer(answer) {
         return answer
             .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
@@ -602,7 +536,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .toLowerCase();
     }
     
-    // عرض نتيجة الإجابة
     function showFeedback(isCorrect, correctAnswer = null) {
         const feedbackPopup = document.getElementById('feedback-popup');
         const feedbackMessage = document.getElementById('feedback-message');
@@ -627,33 +560,25 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
     
-    // تحديث شريط التقدم
     function updateProgressBar() {
         const progress = (currentQuestionIndex / quizData.length) * 100;
         document.querySelector('.progress-fill').style.width = `${progress}%`;
     }
     
-    // تحديث عرض النتيجة
     function updateScoreDisplay() {
         const percentage = Math.round((score / quizData.length) * 100);
         document.getElementById('score-display').textContent = `${percentage}%`;
     }
     
-    // عرض النتائج النهائية
     function showResults() {
         const questionContainer = document.getElementById('question-container');
         const percentage = Math.round((score / quizData.length) * 100);
         
         let resultMessage;
-        if (percentage >= 90) {
-            resultMessage = "ممتاز! لديك فهم ممتاز لهذا الموضوع.";
-        } else if (percentage >= 70) {
-            resultMessage = "جيد جداً! لديك معرفة قوية بالموضوع.";
-        } else if (percentage >= 50) {
-            resultMessage = "ليس سيئاً! واصل التدرب لتحسين أدائك.";
-        } else {
-            resultMessage = "واصل التعلم والتدرب، ستحقق تقدمًا قريباً!";
-        }
+        if (percentage >= 90) resultMessage = "ممتاز! لديك فهم ممتاز لهذا الموضوع.";
+        else if (percentage >= 70) resultMessage = "جيد جداً! لديك معرفة قوية بالموضوع.";
+        else if (percentage >= 50) resultMessage = "ليس سيئاً! واصل التدرب لتحسين أدائك.";
+        else resultMessage = "واصل التعلم والتدرب، ستحقق تقدمًا قريباً!";
         
         questionContainer.innerHTML = `
             <div class="result-container">
@@ -681,6 +606,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // تهيئة الواجهة عند التحميل
-    updateLessonDropdown();
+    // إغلاق نافذة التلميح
+    closeHintBtn.addEventListener('click', () => {
+        hintContainer.classList.remove('show');
+    });
+    
+    // بدء التطبيق
+    loadSubjects();
 });
